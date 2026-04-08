@@ -14,6 +14,12 @@ Ideally, we'd allow for submissions to use arbitrary computational resources. Bu
 We also know compute is expensive, so **OpenAI is sponsoring $1,000,000 in compute credits** to help people get started training their models. To request a compute grant, use this form: [Request a Compute Grant](https://openai.com/index/parameter-golf/#credit-form).
 When requesting compute, please make sure you choose the appropriate level, write sufficient justification, and **submit with an email tied to a OpenAI / ChatGPT account**.
 
+## Research Maturity
+
+This fork includes exploratory experiments and informal internal notes from an ongoing research process. Some results are single-seed, one-shard, or early-stage checks intended to test directionality rather than establish final benchmark claims.
+
+Treat this repository as "vibe-researched" work-in-progress unless a result is explicitly documented as reproducible with full logs, exact config, and multi-seed evidence.
+
 ## Participant Form
 
 If you enjoy solving very difficult technical problems, please introduce yourself via the [Challenge Participant Form](https://jobs.ashbyhq.com/openai/form/open-ai-challenge-parameter-golf). It helps us attribute challenge submissions and reach out about opportunities with OpenAI. _Completing the form is not required to participate._

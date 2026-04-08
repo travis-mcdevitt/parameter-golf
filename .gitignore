@@ -9,3 +9,23 @@ data/docs_selected.jsonl
 .mypy_cache/
 .venv
 logs/
+
+# Local environment / editor scratch
+.env
+.codex
+.claude/
+AGENTS.md
+CLAUDE.md
+
+# Python cache
+*.pyc
+
+# Hosted-run scratch bundles and pulled logs
+runpod_logs_*/
+runpod/**/__pycache__/
+
+# Local experiment artifacts (keep summary JSON/MD, ignore heavy checkpoints)
+experiments/**/final_model.pt
+experiments/**/final_model.int8.ptz
+experiments/**/final_model.int6.ptz
+experiments/**/train.log
