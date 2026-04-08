@@ -48,6 +48,7 @@ class Hyperparameters:
     # Validation cadence and batch size. Validation always uses the full fineweb_val split.
     val_batch_size = int(os.environ.get("VAL_BATCH_SIZE", 524_288))
     val_loss_every = int(os.environ.get("VAL_LOSS_EVERY", 1000))
+    val_tokens_max = int(os.environ.get("VAL_TOKENS_MAX", 0))  # 0 = use full val set
     train_log_every = int(os.environ.get("TRAIN_LOG_EVERY", 200))
 
     # Training length.
@@ -85,9 +86,10 @@ class Hyperparameters:
     beta2 = float(os.environ.get("BETA2", 0.95))
     adam_eps = float(os.environ.get("ADAM_EPS", 1e-8))
     grad_clip_norm = float(os.environ.get("GRAD_CLIP_NORM", 0.0))
+    smooth_lambda = float(os.environ.get("SMOOTH_LAMBDA", 0.0))
 
 # -----------------------------
-# MUON OPTIMIZER 
+# MUON OPTIMIZER
 # -----------------------------
 # 
 # As borrowed from modded-nanogpt
@@ -763,10 +765,13 @@ def main() -> None:
     torch.backends.cudnn.allow_tf32 = True
     from torch.backends.cuda import enable_cudnn_sdp, enable_flash_sdp, enable_math_sdp, enable_mem_efficient_sdp
 
+    # Flash SDP with enable_gqa requires SM>=80 (Ampere+). Fall back to
+    # mem_efficient+math on older GPUs so GQA still works.
+    sm_major = torch.cuda.get_device_capability()[0] if torch.cuda.is_available() else 0
     enable_cudnn_sdp(False)
-    enable_flash_sdp(True)
-    enable_mem_efficient_sdp(False)
-    enable_math_sdp(False)
+    enable_flash_sdp(sm_major >= 8)
+    enable_mem_efficient_sdp(sm_major < 8)
+    enable_math_sdp(sm_major < 8)
 
     logfile = None
     if master_process:
@@ -812,6 +817,8 @@ def main() -> None:
     dataset_dir = Path(args.data_path).resolve()
     actual_train_files = len(list(dataset_dir.glob("fineweb_train_*.bin")))
     val_tokens = load_validation_tokens(args.val_files, args.train_seq_len)
+    if args.val_tokens_max > 0 and val_tokens.numel() > args.val_tokens_max:
+        val_tokens = val_tokens[:args.val_tokens_max]
     base_bytes_lut, has_leading_space_lut, is_boundary_token_lut = build_sentencepiece_luts(
         sp, args.vocab_size, device
     )
@@ -908,6 +915,14 @@ def main() -> None:
         f"max_wallclock_seconds:{args.max_wallclock_seconds:.3f}"
     )
     log0(f"seed:{args.seed}")
+
+    # Collect 2D weight matrices for warmdown smoothness regularizer (Issue #3).
+    smooth_weights = [
+        p for name, p in block_named_params
+        if p.ndim == 2 and not any(pattern in name for pattern in CONTROL_TENSOR_NAME_PATTERNS)
+    ] if args.smooth_lambda > 0 else []
+    if smooth_weights:
+        log0(f"smooth_lambda:{args.smooth_lambda} smooth_weights:{len(smooth_weights)} matrices")
 
     # -----------------------------
     # DATA LOADER & MODEL WARMUP
@@ -1017,6 +1032,16 @@ def main() -> None:
             train_loss += loss.detach()
             (loss * grad_scale).backward()
         train_loss /= grad_accum_steps
+
+        # Warmdown smoothness regularizer: L2 penalty on column-wise weight diffs.
+        # Active only during warmdown (scale < 1), ramps with (1 - scale).
+        if smooth_weights and scale < 1.0:
+            smooth_loss = torch.zeros((), device=device)
+            for w in smooth_weights:
+                diff = w[:, 1:] - w[:, :-1]
+                smooth_loss = smooth_loss + diff.pow(2).sum()
+            smooth_strength = args.smooth_lambda * (1.0 - scale)
+            (smooth_strength * smooth_loss).backward()
 
         frac = min(step / args.muon_momentum_warmup_steps, 1.0) if args.muon_momentum_warmup_steps > 0 else 1.0
         muon_momentum = (1 - frac) * args.muon_momentum_warmup_start + frac * args.muon_momentum
