@@ -5,6 +5,7 @@
 | Experiment | What we found |
 | --- | --- |
 | [H100 smoothness A/B](experiments/hosted_h100_smooth_ab/RESULTS.md) | The int6 + LZMA artifact shrank **21.8%** (13.32 MB → 10.42 MB), but sliding validation worsened from **1.282 to 1.331 BPB**. The quality gap was already visible before export. This was a single-seed, one-shard run on one H100. |
+| [RTX 4090 follow-up sweep](https://github.com/travis-mcdevitt/parameter-golf/issues/3#issuecomment-4208406548) | Six single-seed, one-shard trials showed no clear sweet spot in the tested range. One setting cut artifact size **5.8%** (12.86 MB → 12.12 MB) while moving sliding validation from **1.310 to 1.322 BPB**. |
 | [GPTQ compression check](experiments/gptq_survival_test/results.json) | In the smaller pilot, weaker smoothing still cut the GPTQ + LZMA artifact **17.2%** (9.12 MB → 7.55 MB), with a smaller penalty: **2.0677 → 2.0797 BPB** after GPTQ. Stronger smoothing saved more space and lost more quality. |
 | [Same-size reinvestment pilot](experiments/reinvest_pilot/results.json) | At nearly identical compressed size (~9.12 MB), the wider, smoothed model (21.78M vs. 17.06M parameters) still scored worse after GPTQ (**2.0762 vs. 2.0677 BPB**) and took longer to train. This pilot did not match training time. |
 
