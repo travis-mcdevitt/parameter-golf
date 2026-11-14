@@ -1,3 +1,17 @@
+# Parameter Golf: findings from this fork
+
+**Weight smoothness made the exported model smaller, but the tested savings came at a quality cost.** These are exploratory results, not leaderboard submissions. BPB means bits per byte; lower is better. Compare scores within each experiment, not across setups.
+
+| Experiment | What we found |
+| --- | --- |
+| [H100 smoothness A/B](experiments/hosted_h100_smooth_ab/RESULTS.md) | The int6 + LZMA artifact shrank **21.8%** (13.32 MB → 10.42 MB), but sliding validation worsened from **1.282 to 1.331 BPB**. The quality gap was already visible before export. This was a single-seed, one-shard run on one H100. |
+| [GPTQ compression check](experiments/gptq_survival_test/results.json) | In the smaller pilot, weaker smoothing still cut the GPTQ + LZMA artifact **17.2%** (9.12 MB → 7.55 MB), with a smaller penalty: **2.0677 → 2.0797 BPB** after GPTQ. Stronger smoothing saved more space and lost more quality. |
+| [Same-size reinvestment pilot](experiments/reinvest_pilot/results.json) | At nearly identical compressed size (~9.12 MB), the wider, smoothed model (21.78M vs. 17.06M parameters) still scored worse after GPTQ (**2.0762 vs. 2.0677 BPB**) and took longer to train. This pilot did not match training time. |
+
+The takeaway: the byte savings survived export, but neither the tested H100 setting nor spending those bytes on a wider model improved validation. See the [experiment index](https://github.com/travis-mcdevitt/parameter-golf/issues/8) for the other directions and their status.
+
+---
+
 <img width="3840" height="1280" alt="1920x640-discord" src="https://github.com/user-attachments/assets/90607b26-171f-476a-90ae-69b9dbb7cb30" />
 
 <br>
